@@ -102,4 +102,5 @@ ENV/
 
 #
 data/ogle3.pkl
+data/ogle3_2bc.*
 data/lc/*
