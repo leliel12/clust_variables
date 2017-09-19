@@ -22,12 +22,12 @@ class Filter2Bands(object):
     def extract(self, oid):
         print("Filtering {}...".format(oid))
         o_path = os.path.join('data', "lc", "{}.tar".format(oid))
-        with tarfile.TarFile(o_path) as tfp:
-            try:
+        try:
+            with tarfile.TarFile(o_path) as tfp:
                 tfp.getmember("./{}.I.dat".format(oid))
                 tfp.getmember("./{}.V.dat".format(oid))
-            except:
-                return pd.Series({"two_bands": False})
+        except:
+            return pd.Series({"two_bands": False})
         return pd.Series({"two_bands": True})
 
 

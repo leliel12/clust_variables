@@ -19,24 +19,6 @@ from libs.ext_signature import Signature
 # CLASSES
 # =============================================================================
 
-class Filter2Bands(object):
-
-    def __call__(self, df):
-        df["two_bands"] = df.ID.apply(self.extract)
-        return df
-
-    def extract(self, oid):
-        print("Filtering {}...".format(oid))
-        o_path = os.path.join('data', "lc", "{}.tar".format(oid))
-        with tarfile.TarFile(o_path) as tfp:
-            try:
-                i_band = tfp.getmember("./{}.I.dat".format(oid))
-                v_band = tfp.getmember("./{}.V.dat".format(oid))
-            except:
-                return pd.Series({"two_bands": False})
-        return pd.Series({"two_bands": True})
-
-
 class Extractor(object):
 
     def __init__(self, fs):
@@ -47,24 +29,38 @@ class Extractor(object):
         df[fs.features_as_array_] = df.ID.apply(self.extract)
         return df
 
+    def sort(self, time, mag, mag_err):
+        sort_mask = time.argsort()
+        return time[sort_mask], mag[sort_mask], mag_err[sort_mask]
+
     def extract(self, oid):
-        #~ print("Extracting {}...".format(oid))
+        print("Extracting {}...".format(oid))
         fs = self._fs
         o_path = os.path.join('data', "lc", "{}.tar".format(oid))
         with tarfile.TarFile(o_path) as tfp:
-            try:
-                i_band = tfp.getmember("./{}.I.dat".format(oid))
-                v_band = tfp.getmember("./{}.V.dat".format(oid))
-            except:
-                print tfp.getnames()
+            i_member = tfp.getmember("./{}.I.dat".format(oid))
+            v_member = tfp.getmember("./{}.V.dat".format(oid))
+            i_band = tfp.extractfile(i_member)
+            v_band = tfp.extractfile(v_member)
+
+            lc_i = np.loadtxt(i_band)
+            lc_v = np.loadtxt(v_band)
+
+            time_i, mag_i, mag_err_i = self.sort(lc_i[:,0], lc_i[:,1], lc_i[:,2])
+            time_v, mag_v, mag_err_v = self.sort(lc_v[:,0], lc_v[:,1], lc_v[:,2])
+
+            atime, amag, amag2, aerror, aerror2 = feets.preprocess.align(
+                mag_i, mag_v, time_i, time_v, mag_err_i, mag_err_v)
+            import ipdb; ipdb.set_trace()
+            a=1
+
 
 
 
         #~ lc = np.loadtxt(lc_path)
         #~ time, mag, mag_err = lc[:,0], lc[:,1], lc[:,2]
 
-        #~ sort_mask = time.argsort()
-        #~ data = (mag[sort_mask], time[sort_mask], mag_err[sort_mask])
+        #~
 
         #~ with warnings.catch_warnings():
             #~ warnings.simplefilter("ignore")
@@ -86,15 +82,13 @@ def main():
                  "StructureFunction_index_21",
                  "StructureFunction_index_31",
                  "StructureFunction_index_32"])
-
-    filter2Bands = Filter2Bands()
     extractor = Extractor(fs)
 
-    df = pd.read_pickle("data/ogle3.pkl")
-    df = mp_apply(df, filter2Bands)
-    import ipdb; ipdb.set_trace()
+    df = pd.read_pickle("data/ogle3_2bc.pkl")
+    df = df[df.two_bands == True]
+    #~ df = mp_apply(df, filter2Bands)
 
-    #~ extractor(df)
+    extractor(df)
 
     #~ features = mp_apply(df, extractor)
     #~ features.to_pickle("features/features.pkl")
